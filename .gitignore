@@ -1,3 +1,8 @@
 node_modules/
 .env
 dist/
+/.swc
+
+# Workflow SDK
+.well-known/
+.workflow-data/
