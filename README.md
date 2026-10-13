@@ -66,17 +66,20 @@ process restarts, and shows up as a discrete step in the dashboard.
 
 `src/workflows/chat.ts` is the durable entrypoint: a `'use workflow'`
 function that streams the agent via `getWritable()`. Run it with the
-Workflow SDK:
+Workflow SDK local runtime:
 
 ```bash
 npx workflow build -t standalone   # compile workflow + step bundles
-npx workflow start chat '"<prompt>"'  # start a run (local backend)
+npm run workflow-server            # serve the queue consumer on :3457
+curl -X POST localhost:3457/run -d '{"prompt":"..."}'   # start a run
+curl localhost:3457/result/<runId>                      # poll the result
 npx workflow inspect runs          # inspect runs and steps
 ```
 
-Full durability (surviving restarts, human-in-the-loop approvals via
-`needsApproval`) needs the workflow runtime — local via the standalone
-flow handler, or managed on Vercel. See the
+Runs are checkpointed to `.workflow-data/` — kill and restart the server
+mid-run and the workflow resumes from its last completed step. Full
+durability (human-in-the-loop approvals via `needsApproval`) also works
+on Vercel's managed runtime. See the
 [WorkflowAgent docs](https://ai-sdk.dev/docs/agents/workflow-agent).
 
 ## Notes

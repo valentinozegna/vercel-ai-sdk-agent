@@ -19,7 +19,8 @@
     "agent": "tsx src/tui.ts",
     "once": "tsx src/once.ts",
     "typecheck": "tsc --noEmit",
-    "workflow": "tsx src/workflow-once.ts"
+    "workflow": "tsx src/workflow-once.ts",
+    "workflow-server": "tsx src/workflow-server.ts"
   },
   "type": "module",
   "version": "1.0.0"
