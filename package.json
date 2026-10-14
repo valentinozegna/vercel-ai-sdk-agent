@@ -1,7 +1,7 @@
 {
-  "name": "vercel-ai-sdk-agent",
+  "name": "vercel-always-on-agent",
   "version": "2.0.0",
-  "description": "An always-on personal agent (Muse / OpenClaw / Dots style) built on Vercel's eve framework, AI SDK, Workflow SDK, and AI Gateway.",
+  "description": "Vercel Always-On Agent: a personal agent in the style of Muse, OpenClaw, and Dots, built on eve, the AI SDK, the Workflow SDK, AI Gateway, and Vercel Sandbox.",
   "license": "MIT",
   "type": "module",
   "imports": {
