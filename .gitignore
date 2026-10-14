@@ -1,8 +1,14 @@
-node_modules/
-.env
-dist/
-/.swc
+node_modules
+.env*
+!.env.example
+.eve
+.vercel
+.next
+.output
+.nitro
+dist
+.DS_Store
+*.tsbuildinfo
 
-# Workflow SDK
-.well-known/
-.workflow-data/
+# Agent runtime data (memory, routines, heartbeat checklist)
+.data

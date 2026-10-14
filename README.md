@@ -1,93 +1,150 @@
-# vercel-ai-sdk-agent
+# Personal agent
 
-A functional working agent built with the **Vercel AI SDK v7** —
-`ToolLoopAgent` for interactive use, plus `WorkflowAgent` for durable,
-resumable runs.
+An always-on personal agent in the style of Meta Muse, OpenClaw, and ChatGPT Dots, built entirely on Vercel's stack and fully customizable. It lives on your server, talks to you on Telegram, remembers what matters to you, and acts on its own through a heartbeat and self-scheduled routines.
+
+| Layer | Vercel product |
+|---|---|
+| Agent framework (agent-as-a-directory, durable sessions, channels, schedules, memory) | [eve](https://eve.dev) |
+| Model calls and tool loop | [AI SDK](https://ai-sdk.dev) v7 |
+| Durable execution (survives crashes and restarts) | [Workflow SDK](https://workflow-sdk.dev) |
+| Model routing (any provider, one key) and web search | [AI Gateway](https://vercel.com/docs/ai-gateway) |
+| Sandbox when hosted on Vercel | [Vercel Sandbox](https://vercel.com/docs/sandbox) |
 
 ## What it does
 
-An agent with five tools that runs as an interactive terminal UI,
-a one-shot CLI command, or a durable workflow:
+- **Talks to you on Telegram.** Only your user ID gets through; everyone else is dropped before any model call. Photos, PDFs, and text files work too. Approvals and questions show up as buttons.
+- **Remembers you.** Long-term memory shared across every conversation and every scheduled run. The agent saves durable facts and tells you when it does.
+- **Acts on its own:**
+  - **Routines:** reminders, follow-ups, and recurring jobs ("every weekday at 8, send me a briefing") that the agent creates, lists, edits, and deletes itself. A one-minute dispatcher runs them as normal agent turns and the result lands in your chat.
+  - **Heartbeat:** every 30 minutes (configurable, never during quiet hours) the agent reviews a checklist of standing concerns and messages you only if something needs attention. An empty checklist costs nothing: no model call.
+  - **Activity log:** ask "what have you been up to?" and it reads back what it did on its own.
+- **Does real work:** web search and page fetching, a sandboxed shell and filesystem, exact math, and a `researcher` subagent for deep, cited research while it keeps chatting with you.
+- **Skills:** a daily briefing and a weekly review, loaded only when relevant.
 
-| Tool | What it does |
-|---|---|
-| `getCurrentTime` | Current date/time, optional IANA timezone |
-| `calculate` | Safe arithmetic (`(12 + 7) * 3`, no `eval`) |
-| `listFiles` | List files in a directory (sandboxed to cwd) |
-| `readFile` | Read a text file (sandboxed to cwd, capped) |
-| `fetchWebsite` | Fetch a page and return its text |
+## Layout
 
-The model is resolved through the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway),
-so any `provider/model` ID works. Set it with `AI_MODEL`.
+```text
+agent/
+  agent.ts               model, reasoning, compaction, spend limits
+  instructions.md        identity, tone, proactivity, memory, and safety rules
+  instructions/now.ts    injects your local time into every turn
+  memory.ts              long-term memory slot (local disk, or Vercel Blob on Vercel)
+  sandbox.ts             shell/filesystem provider (just-bash, docker, or vercel)
+  channels/telegram.ts   Telegram, owner-only
+  channels/eve.ts        HTTP session API behind Basic auth
+  schedules/heartbeat.ts the heartbeat
+  schedules/routines.ts  dispatcher for agent-created routines
+  tools/                 routines, heartbeat checklist, activity log, clock, calculator, ...
+  skills/                daily-briefing, weekly-review
+  subagents/researcher/  deep-research specialist
+  lib/                   config and file-backed stores
+scripts/                 Telegram polling bridge and webhook registration
+deploy/                  systemd units and a Caddyfile
+test/                    unit tests for routines, heartbeat, and memory storage
+```
+
+Each file is plain TypeScript or Markdown. Add a tool by dropping a file in `agent/tools/`, a skill in `agent/skills/`, a recurring job in `agent/schedules/`, a specialist in `agent/subagents/`. See `node_modules/eve/docs/README.md` for the full framework docs.
+
+eve also provides `bash`, `read_file`, `write_file`, `web_fetch`, `web_search`, and an `agent` tool (delegate to a copy of itself) by default.
 
 ## Setup
+
+Requires Node 24 or newer.
 
 ```bash
 npm install
 cp .env.example .env
-# edit .env and add your AI_GATEWAY_API_KEY (never commit .env)
 ```
 
-Get a key at https://vercel.com/docs/ai-gateway.
+Fill in `.env`:
 
-## Run
+1. `AI_GATEWAY_API_KEY`: create one at https://vercel.com/dashboard/ai/api-keys.
+2. `OWNER_TIMEZONE`: for example `Europe/Rome`.
+3. Telegram: create a bot with [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN`, a random `TELEGRAM_WEBHOOK_SECRET_TOKEN` (`openssl rand -hex 32`), and your numeric user ID in `TELEGRAM_OWNER_IDS` (ask [@userinfobot](https://t.me/userinfobot)).
+4. `EVE_ADMIN_PASSWORD`: protects the HTTP API in production.
 
-Interactive terminal UI:
+## Run locally
+
+Chat in the terminal UI:
 
 ```bash
-npm run agent
+npm run dev
 ```
 
-One-shot:
+`eve dev` can also use credentials from its `/login` command (a Vercel account, a ChatGPT subscription, or a provider API key) instead of `.env`.
+
+Schedules do not fire on their own under `eve dev`. Trigger one manually:
 
 ```bash
-npm run once -- "What time is it in Tokyo and what is (48 + 12) * 3?"
+curl -X POST http://localhost:2000/eve/v1/dev/schedules/routines
 ```
 
-Durable workflow agent (same tools, each tool call a retryable,
-persistent step):
+Production mode locally, with Telegram:
 
 ```bash
-npm run workflow -- "What is (12 + 7) * 3?"
+npm run build
+npm start
 ```
 
-Typecheck:
+Then, in a second terminal:
+
+```bash
+npm run telegram:poll
+```
+
+## Deploy on a VM (always on)
+
+With Docker:
+
+```bash
+docker compose up -d --build
+```
+
+This runs the agent plus the Telegram polling bridge, with workflow state and agent data on named volumes. No public URL or open port is needed: the poller pulls messages from Telegram and forwards them to the agent on the private network.
+
+Without Docker, build in place and use the systemd units in `deploy/` (`agent.service` and `telegram-poller.service`).
+
+To use a Telegram webhook instead of polling, put the VM behind HTTPS (see `deploy/Caddyfile`), stop the poller, and register the webhook:
+
+```bash
+PUBLIC_URL=https://agent.example.com npm run telegram:webhook
+```
+
+Persist two directories across restarts and upgrades: `.eve/.workflow-data` (durable sessions and parked turns) and `.data` (memory, routines, heartbeat checklist, activity log).
+
+### Sandbox choice
+
+`AGENT_SANDBOX` is read at build time:
+
+- `just-bash` (default): a pure-JavaScript shell with a virtual filesystem. No dependencies, but no native binaries such as Python.
+- `docker`: a real Linux container per session. Needs Docker on the host where the agent runs (not inside the agent's own container).
+- `vercel`: hosted Vercel Sandbox microVMs.
+
+## Deploy on Vercel
+
+`npx eve deploy` works too. Schedules become Vercel Cron Jobs and the sandbox should be `vercel`. Two caveats: run `npx eve add memory/file` so memory lives in Vercel Blob, and replace the file-based stores in `agent/lib/` (routines, heartbeat, activity) with a durable store such as Upstash Redis, because the Vercel filesystem is not persistent. Register the Telegram webhook against the deployment URL.
+
+## Test
 
 ```bash
 npm run typecheck
+npm test
 ```
 
-## WorkflowAgent
+## Customizing
 
-`src/workflow-agent.ts` defines the same agent as a `WorkflowAgent`
-(`@ai-sdk/workflow`). Tool `execute` functions are marked `'use step'`,
-so inside a workflow each tool call gets automatic retries, survives
-process restarts, and shows up as a discrete step in the dashboard.
+- **Personality and rules:** edit `agent/instructions.md`.
+- **Model:** `npx eve set model <provider/model>` (any AI Gateway model), or edit `agent/agent.ts`.
+- **Spend:** `limits.maxTokenCostUsdPerSession` in `agent/agent.ts` caps model cost per session.
+- **Approvals:** add `approval: always()` (from `eve/tools/approval`) to any tool that should ask you first. Note that turns started by the heartbeat or a routine run as the app itself; give such tools a `response` policy that lets you approve them.
+- **More channels:** `npx eve add channel/slack`, `channel/discord`, `channel/twilio` (SMS and calls), `channel/linq` or `channel/photon` (iMessage).
+- **Integrations:** `npx eve registry search <service>` to connect MCP servers and APIs such as Linear, GitHub, or Notion.
 
-`src/workflows/chat.ts` is the durable entrypoint: a `'use workflow'`
-function that streams the agent via `getWritable()`. Run it with the
-Workflow SDK local runtime:
+## Safety notes
 
-```bash
-npx workflow build -t standalone   # compile workflow + step bundles
-npm run workflow-server            # serve the queue consumer on :3457
-curl -X POST localhost:3457/run -d '{"prompt":"..."}'   # start a run
-curl localhost:3457/result/<runId>                      # poll the result
-npx workflow inspect runs          # inspect runs and steps
-```
-
-Runs are checkpointed to `.workflow-data/` — kill and restart the server
-mid-run and the workflow resumes from its last completed step. Full
-durability (human-in-the-loop approvals via `needsApproval`) also works
-on Vercel's managed runtime. See the
-[WorkflowAgent docs](https://ai-sdk.dev/docs/agents/workflow-agent).
-
-## Notes
-
-- No API keys are committed to this repo. `.env` is gitignored; only
-  `.env.example` (with placeholder values) is tracked.
-- File tools are sandboxed to the directory you launch from.
-- Built against `ai@7` — see the [AI SDK agent docs](https://ai-sdk.dev/docs/agents/overview).
+- Everything the owner check lets through runs with the agent's full toolset. Keep `TELEGRAM_OWNER_IDS` and `EVE_ADMIN_PASSWORD` tight.
+- The default tools run without approval. The sandbox isolates shell commands, but authored tools in `agent/tools/` run in the server process with access to its environment.
+- Delivery of routines is at least once: a crash at the wrong moment can run one twice.
 
 ## License
 

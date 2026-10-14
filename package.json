@@ -1,27 +1,38 @@
 {
-  "dependencies": {
-    "@ai-sdk/tui": "^1.0.0",
-    "@ai-sdk/workflow": "^2.0.70",
-    "ai": "^7.0.0",
-    "dotenv": "^16.4.5",
-    "workflow": "^5.2.1",
-    "zod": "^3.23.8"
-  },
-  "description": "A functional working agent built with the Vercel AI SDK v7 (ToolLoopAgent + WorkflowAgent).",
-  "devDependencies": {
-    "@types/node": "^26.6.5",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
-  },
-  "license": "MIT",
   "name": "vercel-ai-sdk-agent",
-  "scripts": {
-    "agent": "tsx src/tui.ts",
-    "once": "tsx src/once.ts",
-    "typecheck": "tsc --noEmit",
-    "workflow": "tsx src/workflow-once.ts",
-    "workflow-server": "tsx src/workflow-server.ts"
-  },
+  "version": "2.0.0",
+  "description": "An always-on personal agent (Muse / OpenClaw / Dots style) built on Vercel's eve framework, AI SDK, Workflow SDK, and AI Gateway.",
+  "license": "MIT",
   "type": "module",
-  "version": "1.0.0"
+  "imports": {
+    "#*": "./agent/*",
+    "#evals/*": "./evals/*"
+  },
+  "scripts": {
+    "dev": "eve dev",
+    "build": "eve build",
+    "start": "eve start",
+    "deploy": "eve deploy",
+    "eval": "eve eval",
+    "typecheck": "tsc",
+    "test": "tsx --test test/*.test.ts",
+    "telegram:poll": "node scripts/telegram-poll.ts",
+    "telegram:webhook": "node scripts/telegram-webhook.ts"
+  },
+  "dependencies": {
+    "@vercel/connect": "2.2.0",
+    "ai": "^7.0.137",
+    "croner": "^10.0.1",
+    "eve": "^0.79.0",
+    "just-bash": "^3.6.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "tsx": "^4.23.15",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
 }

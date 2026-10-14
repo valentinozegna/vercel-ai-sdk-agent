@@ -1,0 +1,11 @@
+# Optional: public HTTPS for the agent, instead of the polling bridge.
+# Point a DNS record at the VM, replace the hostname, and run Caddy on the VM.
+# Then register the webhook: PUBLIC_URL=https://agent.example.com npm run telegram:webhook
+#
+# eve needs both route prefixes forwarded unchanged:
+#   /eve/                   sessions, streams, channels (Telegram webhook)
+#   /.well-known/workflow/  workflow callbacks
+
+agent.example.com {
+	reverse_proxy 127.0.0.1:3000
+}

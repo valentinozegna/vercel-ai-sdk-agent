@@ -1,0 +1,32 @@
+# Always-on agent on a single VM:
+#   docker compose up -d --build
+# The poller relays Telegram messages to the agent, so no public URL is needed.
+
+services:
+  agent:
+    build: .
+    env_file: .env
+    environment:
+      AGENT_DATA_DIR: /app/.data
+    ports:
+      # Localhost only. Put Caddy or a tunnel in front for remote HTTP access.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - workflow-data:/app/.eve/.workflow-data
+      - agent-data:/app/.data
+    restart: unless-stopped
+
+  telegram-poller:
+    build: .
+    env_file: .env
+    environment:
+      AGENT_URL: http://agent:3000
+    command: ["node", "scripts/telegram-poll.ts"]
+    depends_on:
+      agent:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  workflow-data:
+  agent-data:

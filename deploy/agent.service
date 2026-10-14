@@ -1,0 +1,25 @@
+# systemd unit for running the agent directly on a VM (no Docker).
+# Install:
+#   sudo cp deploy/agent.service /etc/systemd/system/agent.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now agent
+# Assumes the repo lives in /opt/agent, owned by user "agent", and was built
+# with `npm ci && npx eve build`. Adjust paths and the node binary as needed.
+
+[Unit]
+Description=Personal agent (eve)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agent
+WorkingDirectory=/opt/agent
+EnvironmentFile=/opt/agent/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npx eve start --host 127.0.0.1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

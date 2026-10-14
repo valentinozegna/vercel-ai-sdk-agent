@@ -1,0 +1,22 @@
+# systemd unit for the Telegram polling bridge (no public URL needed).
+# Install next to agent.service:
+#   sudo cp deploy/telegram-poller.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now telegram-poller
+
+[Unit]
+Description=Telegram polling bridge for the personal agent
+After=agent.service
+Requires=agent.service
+
+[Service]
+Type=simple
+User=agent
+WorkingDirectory=/opt/agent
+EnvironmentFile=/opt/agent/.env
+Environment=AGENT_URL=http://127.0.0.1:3000
+ExecStart=/usr/bin/node scripts/telegram-poll.ts
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
