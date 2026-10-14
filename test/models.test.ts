@@ -41,6 +41,10 @@ describe("model selection", () => {
     assert.deepEqual(parseModelSpec("local:"), { provider: "local", model: "llama3.3" });
   });
 
+  it("rejects a mistyped provider instead of treating it as a Gateway ID", () => {
+    assert.throws(() => parseModelSpec("gogle:gemini-3.8-flash"), /Unknown provider "gogle"/);
+  });
+
   it("detects the provider from the configured credential", () => {
     assert.equal(detectProvider(), "gateway");
     process.env.GEMINI_API_KEY = "x";

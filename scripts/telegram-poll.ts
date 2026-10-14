@@ -84,8 +84,30 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
+/** A rejected token is a configuration problem: retry slowly instead of hammering Telegram. */
+function retryDelayFor(error: unknown): number {
+  return /unauthorized|not found/i.test(String(error)) ? 60_000 : 5_000;
+}
+
+function describe(error: unknown): string {
+  const text = String(error);
+  return /unauthorized|not found/i.test(text)
+    ? `${text}. Check TELEGRAM_BOT_TOKEN.`
+    : text;
+}
+
 // getUpdates and a webhook are mutually exclusive in the Bot API.
-await telegram("deleteWebhook", { drop_pending_updates: false });
+while (!controller.signal.aborted) {
+  try {
+    await telegram("deleteWebhook", { drop_pending_updates: false }, controller.signal);
+    break;
+  } catch (error) {
+    if (controller.signal.aborted) process.exit(0);
+    const wait = retryDelayFor(error);
+    console.error(`telegram poller cannot start: ${describe(error)} Retrying in ${wait / 1000}s.`);
+    await sleep(wait);
+  }
+}
 console.log(`telegram poller forwarding to ${webhookUrl}`);
 
 let offset = 0;
@@ -103,7 +125,8 @@ while (!controller.signal.aborted) {
     }
   } catch (error) {
     if (controller.signal.aborted) break;
-    console.warn(`getUpdates failed (${String(error)}), retrying in 5s`);
-    await sleep(5_000);
+    const wait = retryDelayFor(error);
+    console.warn(`getUpdates failed (${describe(error)}), retrying in ${wait / 1000}s`);
+    await sleep(wait);
   }
 }

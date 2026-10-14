@@ -22,6 +22,9 @@ services:
     environment:
       AGENT_URL: http://agent:3000
     command: ["node", "scripts/telegram-poll.ts"]
+    # The image's health check probes the agent; it does not apply here.
+    healthcheck:
+      disable: true
     depends_on:
       agent:
         condition: service_healthy

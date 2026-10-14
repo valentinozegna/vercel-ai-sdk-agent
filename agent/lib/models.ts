@@ -66,6 +66,12 @@ export function parseModelSpec(raw: string | undefined, role: "main" | "light" =
     if (PROVIDERS.includes(prefix)) {
       return { provider: prefix, model: value.slice(colon + 1) || DEFAULTS[prefix][role] };
     }
+    // "vendor/model" Gateway IDs never contain a colon before the slash; this is a typo'd provider.
+    if (!value.slice(0, colon).includes("/")) {
+      throw new Error(
+        `Unknown provider "${value.slice(0, colon)}" in "${value}". Use one of: ${PROVIDERS.join(", ")}, or a bare AI Gateway ID such as anthropic/claude-opus-5.5.`,
+      );
+    }
   }
   // A bare "vendor/model" ID routes through AI Gateway.
   return { provider: "gateway", model: value };
