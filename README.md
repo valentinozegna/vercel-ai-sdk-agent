@@ -89,6 +89,28 @@ The `claude_code` tool delegates hands-on jobs to Claude Code through Vercel's o
 
 The sandbox needs Vercel access: `vercel link && vercel env pull` for `VERCEL_OIDC_TOKEN`, or `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, and `VERCEL_PROJECT_ID`. Sandbox compute is billed by Vercel.
 
+### Keep secrets in the macOS keychain
+
+Locally you can keep secrets out of `.env` entirely. Store each one in the keychain under its variable name, list the names in `KEYCHAIN_SECRETS`, and leave the variables empty in `.env`:
+
+```bash
+security add-generic-password -a "$USER" -s TELEGRAM_BOT_TOKEN -w
+```
+
+```
+KEYCHAIN_SECRETS=TELEGRAM_BOT_TOKEN,GEMINI_API_KEY
+```
+
+The `local:*` scripts run through `scripts/keychain-run.sh`, which loads only the listed names, so other keys in your keychain never change the provider or billing route.
+
+```bash
+npm run local:start
+```
+
+```bash
+npm run local:telegram
+```
+
 ## Run locally
 
 Chat in the terminal UI:

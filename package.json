@@ -17,7 +17,10 @@
     "typecheck": "tsc",
     "test": "tsx --test test/*.test.ts",
     "telegram:poll": "node scripts/telegram-poll.ts",
-    "telegram:webhook": "node scripts/telegram-webhook.ts"
+    "telegram:webhook": "node scripts/telegram-webhook.ts",
+    "local:start": "scripts/keychain-run.sh npm start",
+    "local:telegram": "scripts/keychain-run.sh npm run telegram:poll",
+    "local:dev": "scripts/keychain-run.sh npm run dev"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.95",
