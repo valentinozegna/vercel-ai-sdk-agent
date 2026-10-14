@@ -1,9 +1,16 @@
-import { defineAgent } from "eve";
+import { defineAgent, defineDynamic } from "eve";
+
+import { modelSelection } from "./lib/models";
 
 export default defineAgent({
-  // Any AI Gateway model ID works. Change it with `npx eve set model <id>`.
-  model: "anthropic/claude-opus-5.5",
-  reasoning: "medium",
+  // Chosen at runtime from AGENT_MODEL or whichever credential is configured;
+  // see agent/lib/models.ts. The same model serves every step, so prompt
+  // caching keeps working.
+  model: defineDynamic({
+    events: {
+      "step.started": () => modelSelection(process.env.AGENT_MODEL, "main"),
+    },
+  }),
   compaction: {
     // Long-lived chats (the Telegram DM is one session) compact a bit early.
     thresholdPercent: 0.8,

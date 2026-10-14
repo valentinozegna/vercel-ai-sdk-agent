@@ -19,6 +19,7 @@ An always-on personal agent in the style of Meta Muse, OpenClaw, and ChatGPT Dot
   - **Heartbeat:** every 30 minutes (configurable, never during quiet hours) the agent reviews a checklist of standing concerns and messages you only if something needs attention. An empty checklist costs nothing: no model call.
   - **Activity log:** ask "what have you been up to?" and it reads back what it did on its own.
 - **Does real work:** web search and page fetching, a sandboxed shell and filesystem, exact math, and a `researcher` subagent for deep, cited research while it keeps chatting with you.
+- **Hands heavy jobs to Claude Code:** the `claude_code` tool runs Claude Code, on your Claude subscription by default, in a disposable Vercel Sandbox microVM. Coding, scripts, and data work happen there in the background while the agent keeps talking to you.
 - **Skills:** a daily briefing and a weekly review, loaded only when relevant.
 
 ## Layout
@@ -37,7 +38,7 @@ agent/
   tools/                 routines, heartbeat checklist, activity log, clock, calculator, ...
   skills/                daily-briefing, weekly-review
   subagents/researcher/  deep-research specialist
-  lib/                   config and file-backed stores
+  lib/                   config, model selection, Claude Code delegate, file-backed stores
 scripts/                 Telegram polling bridge and webhook registration
 deploy/                  systemd units and a Caddyfile
 test/                    unit tests for routines, heartbeat, and memory storage
@@ -58,10 +59,35 @@ cp .env.example .env
 
 Fill in `.env`:
 
-1. `AI_GATEWAY_API_KEY`: create one at https://vercel.com/dashboard/ai/api-keys.
+1. A model credential (see below).
 2. `OWNER_TIMEZONE`: for example `Europe/Rome`.
 3. Telegram: create a bot with [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN`, a random `TELEGRAM_WEBHOOK_SECRET_TOKEN` (`openssl rand -hex 32`), and your numeric user ID in `TELEGRAM_OWNER_IDS` (ask [@userinfobot](https://t.me/userinfobot)).
 4. `EVE_ADMIN_PASSWORD`: protects the HTTP API in production.
+
+### Choose the model
+
+Set one credential; the agent picks it up automatically. `AGENT_MODEL` chooses explicitly (`<provider>:<model>`, or a bare AI Gateway ID).
+
+| Provider | Credential | Example `AGENT_MODEL` | Notes |
+|---|---|---|---|
+| Vercel AI Gateway | `AI_GATEWAY_API_KEY` | `anthropic/claude-opus-5.5` | Any provider's models with one key |
+| Anthropic | `ANTHROPIC_API_KEY` | `anthropic:claude-opus-5-5` | Claude Max and Team plans include monthly API credits for this |
+| OpenAI | `OPENAI_API_KEY` | `openai:gpt-6-luna` | |
+| Google Gemini | `GEMINI_API_KEY` | `google:gemini-4-argon` | |
+| ChatGPT subscription | `/login` in `eve dev` | `chatgpt:gpt-6-luna-fast` | Local development only |
+| Local (Ollama, vLLM, ...) | `LOCAL_MODEL_BASE_URL` | `local:llama3.3` | Any OpenAI-compatible server |
+
+The `researcher` subagent uses `RESEARCHER_MODEL`, or a lighter model from the same provider.
+
+### Claude Code (optional)
+
+The `claude_code` tool delegates hands-on jobs to Claude Code through Vercel's official harness adapter (`@ai-sdk/harness-claude-code`), running in a Vercel Sandbox. Billing follows `CLAUDE_CODE_AUTH`:
+
+- `subscription` (default): your Claude plan. On a Mac where you're logged in to Claude Code it works as is. On a server, run `claude setup-token` once and set `CLAUDE_CODE_OAUTH_TOKEN`. If `ANTHROPIC_API_KEY` is also set, a token is required, so an API key can never silently take over billing.
+- `api-key`: `ANTHROPIC_API_KEY`, billed per token.
+- `gateway`: `AI_GATEWAY_API_KEY`.
+
+The sandbox needs Vercel access: `vercel link && vercel env pull` for `VERCEL_OIDC_TOKEN`, or `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, and `VERCEL_PROJECT_ID`. Sandbox compute is billed by Vercel.
 
 ## Run locally
 
@@ -134,7 +160,7 @@ npm test
 ## Customizing
 
 - **Personality and rules:** edit `agent/instructions.md`.
-- **Model:** `npx eve set model <provider/model>` (any AI Gateway model), or edit `agent/agent.ts`.
+- **Model:** set `AGENT_MODEL` (see "Choose the model"), or add providers in `agent/lib/models.ts`.
 - **Spend:** `limits.maxTokenCostUsdPerSession` in `agent/agent.ts` caps model cost per session.
 - **Approvals:** add `approval: always()` (from `eve/tools/approval`) to any tool that should ask you first. Note that turns started by the heartbeat or a routine run as the app itself; give such tools a `response` policy that lets you approve them.
 - **More channels:** `npx eve add channel/slack`, `channel/discord`, `channel/twilio` (SMS and calls), `channel/linq` or `channel/photon` (iMessage).

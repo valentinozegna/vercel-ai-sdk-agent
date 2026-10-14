@@ -20,6 +20,11 @@
     "telegram:webhook": "node scripts/telegram-webhook.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.95",
+    "@ai-sdk/harness": "^1.0.150",
+    "@ai-sdk/harness-claude-code": "^1.0.154",
+    "@ai-sdk/openai-compatible": "^3.0.68",
+    "@ai-sdk/sandbox-vercel": "^1.0.150",
     "@vercel/connect": "2.2.0",
     "ai": "^7.0.137",
     "croner": "^10.0.1",
