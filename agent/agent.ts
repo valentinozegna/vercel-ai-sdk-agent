@@ -15,6 +15,10 @@ export default defineAgent({
     // Long-lived chats (the Telegram DM is one session) compact a bit early.
     thresholdPercent: 0.8,
   },
+  build: {
+    // The Claude Code adapter loads bridge files next to its own module; bundling would strip them.
+    externalDependencies: ["@ai-sdk/harness", "@ai-sdk/harness-claude-code", "@ai-sdk/sandbox-vercel"],
+  },
   limits: {
     // A personal agent talks in one long session; cap what a runaway loop can spend.
     maxTokenCostUsdPerSession: 25,

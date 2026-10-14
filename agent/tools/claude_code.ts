@@ -30,15 +30,22 @@ export default defineWorkflowTool({
   },
 });
 
-/** The whole job is one durable step; an interrupted step re-runs it from scratch. */
+/**
+ * The whole job is one durable step. Failures are final: an automatic retry
+ * would rerun the entire job in a new sandbox and spend the owner's usage
+ * again, so the agent decides whether to try once more.
+ */
 async function runJob(
   task: string,
   timeoutMinutes: number,
   ctx: WorkflowStepToolContext,
 ): Promise<ClaudeCodeResult> {
   "use step";
-  // Missing configuration will not fix itself on retry; fail the task at once.
   const status = claudeCodeConfigured();
   if (!status.ok) throw new FatalError(`Claude Code is not set up: ${status.reason}`);
-  return runClaudeCodeJob({ task, timeoutMinutes }, ctx.abortSignal);
+  try {
+    return await runClaudeCodeJob({ task, timeoutMinutes }, ctx.abortSignal);
+  } catch (error) {
+    throw new FatalError(`Claude Code job failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
